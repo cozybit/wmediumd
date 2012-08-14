@@ -11,20 +11,20 @@ ifeq ($(NL2FOUND),Y)
 CFLAGS += -DCONFIG_LIBNL20
 LDFLAGS += -lnl-genl
 NLLIBNAME = libnl-2.0
-endif
-
+else
 ifeq ($(NL3xFOUND),Y)
 # libnl 3.2 might be found as 3.2 and 3.0
 NL3FOUND = N
 CFLAGS += -DCONFIG_LIBNL30
 LDFLAGS += -lnl-genl-3
 NLLIBNAME = libnl-3.0
-endif
-
+else
 ifeq ($(NL3FOUND),Y)
 CFLAGS += -DCONFIG_LIBNL30
 LDFLAGS += -lnl-genl
 NLLIBNAME = libnl-3.0
+endif
+endif
 endif
 
 # nl-3.1 has a broken libnl-gnl-3.1.pc file
