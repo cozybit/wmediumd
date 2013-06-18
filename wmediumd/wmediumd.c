@@ -36,7 +36,6 @@
 #include "config.h"
 
 struct nl_sock *sock;
-struct nl_msg *msg;
 struct nl_cb *cb;
 struct nl_cache *cache;
 struct genl_family *family;
@@ -71,8 +70,7 @@ int send_tx_info_frame_nl(struct mac_address *src,
 			  struct hwsim_tx_rate *tx_attempts,
 			  unsigned long cookie)
 {
-
-	msg = nlmsg_alloc();
+	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		goto out;
@@ -112,8 +110,7 @@ out:
 int send_cloned_frame_msg(struct mac_address *dst,
 			  char *data, int data_len, int rate_idx, int signal)
 {
-
-	msg = nlmsg_alloc();
+	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		goto out;
@@ -341,8 +338,7 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
 
 int send_register_msg()
 {
-
-	msg = nlmsg_alloc();
+	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		return -1;
@@ -492,7 +488,6 @@ int main(int argc, char* argv[]) {
 
 	/*Free all memory*/
 	free(sock);
-	free(msg);
 	free(cb);
 	free(cache);
 	free(family);
