@@ -85,7 +85,7 @@ int send_tx_info_frame_nl(struct mac_address *src,
 	rc = nla_put_u32(msg, HWSIM_ATTR_FLAGS, flags);
 	rc = nla_put_u32(msg, HWSIM_ATTR_SIGNAL, signal);
 	rc = nla_put(msg, HWSIM_ATTR_TX_INFO,
-		     IEEE80211_MAX_RATES_PER_TX *
+		     IEEE80211_TX_MAX_RATES *
 		     sizeof(struct hwsim_tx_rate), tx_attempts);
 
 	rc = nla_put_u64(msg, HWSIM_ATTR_COOKIE, cookie);
@@ -190,7 +190,7 @@ void set_all_rates_invalid(struct hwsim_tx_rate* tx_rate)
 {
 	int i;
 	/* set up all unused rates to be -1 */
-	for (i=0; i < IEEE80211_MAX_RATES_PER_TX; i++) {
+	for (i=0; i < IEEE80211_TX_MAX_RATES; i++) {
         	tx_rate[i].idx = -1;
 		tx_rate[i].count = 0;
 	}
@@ -221,11 +221,9 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 					struct hwsim_tx_rate *tx_rates,
 					unsigned long cookie)
 {
-
 	struct mac_address *dst;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
-	struct hwsim_tx_rate tx_attempts[IEEE80211_MAX_RATES_PER_TX];
-
+	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
 	int round = 0, tx_ok = 0, counter, i;
 
 	if (jam_cfg.jam_all || jam_mac(&jam_cfg, src)) {
@@ -235,7 +233,7 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 	/* We prepare the tx_attempts struct */
 	set_all_rates_invalid(tx_attempts);
 
-	while (round < IEEE80211_MAX_RATES_PER_TX &&
+	while (round < IEEE80211_TX_MAX_RATES &&
 	       tx_rates[round].idx != -1 && tx_ok!=1) {
 
 		counter = 1;

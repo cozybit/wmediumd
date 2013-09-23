@@ -25,7 +25,7 @@
 #define IEEE80211_H_
 
 #define IEEE80211_AVAILABLE_RATES 12
-#define IEEE80211_MAX_RATES_PER_TX 5
+#define IEEE80211_TX_MAX_RATES 4
 
 struct ieee80211_hdr {
         unsigned char frame_control[2];
