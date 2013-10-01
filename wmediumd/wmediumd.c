@@ -471,6 +471,7 @@ int main(int argc, char* argv[]) {
 	/*Handle kill signals*/
 	running = 1;
 	signal(SIGUSR1, kill_handler);
+	signal(SIGINT, kill_handler);
 
 	/*init netlink*/
 	init_netlink();
