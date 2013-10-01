@@ -411,6 +411,13 @@ void print_help(int exval)
 	exit(exval);
 }
 
+void check_root_permission ()
+{
+	if (getuid()) {
+		printf("wmediumd: this mode requires root permission\n");
+		exit(EXIT_FAILURE);
+	}
+}
 
 int main(int argc, char* argv[]) {
 
@@ -436,6 +443,8 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_SUCCESS);
 			break;
 		case 'c':
+			/* Root permission is required */
+			check_root_permission();
 			printf("Input configuration file: %s\n", optarg);
 			load_config(optarg);
 			break;
