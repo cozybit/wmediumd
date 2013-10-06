@@ -2001,9 +2001,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	struct mac80211_hwsim_data *data_src, *data_dst;
 	struct ieee80211_rx_status rx_status;
 	struct mac_address *src, *dst;
-	int frame_data_len;
-	char *frame_data;
-	struct sk_buff *skb, *queued_skb, *tmp;
+	struct sk_buff *queued_skb, *tmp, *skb = NULL;
 	unsigned long ret_skb_ptr;
 	bool found = false;
 
