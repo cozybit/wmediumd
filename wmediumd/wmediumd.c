@@ -109,7 +109,6 @@ out:
 
 int send_cloned_frame_msg(struct mac_address *src,
 			  struct mac_address *dst,
-			  char *data, int data_len, 
 			  int rate_idx, int signal, unsigned long cookie)
 {
 	struct nl_msg *msg = nlmsg_alloc();
@@ -126,7 +125,6 @@ int send_cloned_frame_msg(struct mac_address *src,
 		     sizeof(struct mac_address), src);
 	rc = nla_put(msg, HWSIM_ATTR_ADDR_RECEIVER,
 		     sizeof(struct mac_address), dst);
-	rc = nla_put(msg, HWSIM_ATTR_FRAME, data_len, data);
 	rc = nla_put_u32(msg, HWSIM_ATTR_RX_RATE, rate_idx);
 	rc = nla_put_u32(msg, HWSIM_ATTR_SIGNAL, signal);
 	rc = nla_put_u64(msg, HWSIM_ATTR_COOKIE, cookie);
@@ -163,7 +161,7 @@ int get_signal_by_rate(int rate_idx)
 
 int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 				       struct mac_address *dst,
-				       char *data, int data_len, int rate_idx,
+				       int rate_idx,
 				       unsigned long cookie)
 {
 
@@ -182,7 +180,7 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 		/*received signal level*/
 		int signal = get_signal_by_rate(rate_idx);
 
-		send_cloned_frame_msg(src,dst,data,data_len,
+		send_cloned_frame_msg(src,dst,
 				      rate_idx,signal,cookie);
 		sent++;
 		return 1;
@@ -224,8 +222,8 @@ int jam_mac(struct jammer_cfg *jcfg, struct mac_address *src)
  */
 
 void send_frames_to_radios_with_retries(struct mac_address *src,
-					struct mac_address *dst, char *data,
-					int data_len, unsigned int flags,
+					struct mac_address *dst, 
+					unsigned int flags,
 					struct hwsim_tx_rate *tx_rates,
 					unsigned long cookie)
 {
@@ -268,7 +266,7 @@ void send_frames_to_radios_with_retries(struct mac_address *src,
 				 * the frame is destined to this radio tx_ok
 				*/
 				if(send_frame_msg_apply_prob_and_rate(
-					src, target, data, data_len,
+					src, target, 
 					tx_attempts[round].idx, cookie) &&
 					memcmp(dst, target,
 					sizeof(struct mac_address))==0) {
@@ -317,9 +315,6 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
 			struct mac_address *dst = (struct mac_address*)
 				nla_data(attrs[HWSIM_ATTR_ADDR_RECEIVER]);
 
-			unsigned int data_len =
-				nla_len(attrs[HWSIM_ATTR_FRAME]);
-			char* data = (char*)nla_data(attrs[HWSIM_ATTR_FRAME]);
 			unsigned int flags =
 				nla_get_u32(attrs[HWSIM_ATTR_FLAGS]);
 		//	printf("flags: %d\n", flags);
@@ -330,8 +325,8 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
 			received++;
 
 			//printf("frame [%d] length:%d\n",received,data_len);
-			send_frames_to_radios_with_retries(src, dst, data,
-					data_len, flags, tx_rates, cookie);
+			send_frames_to_radios_with_retries(src, dst, 
+					flags, tx_rates, cookie);
 			//printf("\rreceived: %d tried: %d sent: %d acked: %d",
 			//		received, dropped+sent, sent, acked);
 		}
