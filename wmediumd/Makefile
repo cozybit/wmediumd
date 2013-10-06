@@ -45,7 +45,7 @@ NLVERSION :=$(shell $(PKG_CONFIG) --print-provides $(NLLIBNAME))
 
 CFLAGS+=-DVERSION_STR=$(VERSION_STR) -g
 LDFLAGS+=-lconfig 
-OBJECTS=wmediumd.o probability.o mac_address.o config.o
+OBJECTS=wmediumd.o probability.o mac_address.o config.o util.o
 
 all: wmediumd 
 
