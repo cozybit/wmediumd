@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include "mac_address.h"
+#include "util.h"
 
 struct mac_address string_to_mac_address(const char* str)
 {
@@ -40,4 +41,11 @@ struct mac_address string_to_mac_address(const char* str)
 	mac.addr[5] = a[5];
 
 	return mac;
+}
+
+char* mac_address_to_string(struct mac_address *mac)
+{
+	char *mac_str;
+    	msnprintf (&mac_str, 0, "%02x:%02x:%02x:%02x:%02x:%02x", mac->addr[0], mac->addr[1], mac->addr[2], mac->addr[3], mac->addr[4], mac->addr[5]);
+	return mac_str;
 }
