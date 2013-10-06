@@ -639,10 +639,6 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		    sizeof(struct mac_address), hdr->addr1))
 		goto nla_put_failure;
 
-	/* We get the skb->data */
-	if (nla_put(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data))
-		goto nla_put_failure;
-
 	/* We get the flags for this transmission, and we translate them to
 	   wmediumd flags  */
 
@@ -2014,7 +2010,6 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 
 	if (!info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER] ||
 	    !info->attrs[HWSIM_ATTR_ADDR_RECEIVER] ||
-	    !info->attrs[HWSIM_ATTR_FRAME] ||
 	    !info->attrs[HWSIM_ATTR_RX_RATE] ||
 	    !info->attrs[HWSIM_ATTR_COOKIE] ||
 	    !info->attrs[HWSIM_ATTR_SIGNAL])
