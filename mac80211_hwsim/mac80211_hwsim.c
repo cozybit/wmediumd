@@ -670,7 +670,6 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	genlmsg_end(skb, msg_head);
 	genlmsg_unicast(&init_net, skb, dst_portid);
 
-//	wiphy_debug(hw->wiphy, "snt! dst: %pM cookie:%lu\n", hdr->addr1, (unsigned long) my_skb);
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
 	return;
@@ -2045,7 +2044,6 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 
 	data_dst = get_hwsim_data_ref_from_addr(dst);
 
-//	wiphy_debug(data_dst->hw->wiphy, "src: %pM dst: %pM cookie:%lu\n", src, dst, ret_skb_ptr);
 	if (data_dst == NULL)
 		goto out;
 
