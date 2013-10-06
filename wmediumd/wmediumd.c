@@ -223,13 +223,13 @@ int jam_mac(struct jammer_cfg *jcfg, struct mac_address *src)
  * 	Iterate all the radios and send a copy of the frame to each interface.
  */
 
-void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
+void send_frames_to_radios_with_retries(struct mac_address *src,
+					struct mac_address *dst, char *data,
 					int data_len, unsigned int flags,
 					struct hwsim_tx_rate *tx_rates,
 					unsigned long cookie)
 {
-	struct mac_address *dst;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
+	struct mac_address *target;
 	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
 	int round = 0, tx_ok = 0, counter, i;
 
@@ -253,13 +253,13 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 			/* Broadcast the frame to all the radio ifaces*/
 			for (i=0;i<size;i++) {
 
-				dst =  get_mac_address(i);
+				target =  get_mac_address(i);
 
 				/*
 				 * If origin and destination are the
 				 * same just skip this iteration
 				*/
-				if(memcmp(src,dst,sizeof(struct mac_address))
+				if(memcmp(src,target,sizeof(struct mac_address))
 					  == 0 ){
 					continue;
 				}
@@ -268,9 +268,9 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 				 * the frame is destined to this radio tx_ok
 				*/
 				if(send_frame_msg_apply_prob_and_rate(
-					src, dst, data, data_len,
+					src, target, data, data_len,
 					tx_attempts[round].idx, cookie) &&
-					memcmp(dst, hdr->addr1,
+					memcmp(dst, target,
 					sizeof(struct mac_address))==0) {
 						tx_ok = 1;
 				}
@@ -314,6 +314,8 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
 		if (attrs[HWSIM_ATTR_ADDR_TRANSMITTER]) {
 			struct mac_address *src = (struct mac_address*)
 				nla_data(attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
+			struct mac_address *dst = (struct mac_address*)
+				nla_data(attrs[HWSIM_ATTR_ADDR_RECEIVER]);
 
 			unsigned int data_len =
 				nla_len(attrs[HWSIM_ATTR_FRAME]);
@@ -328,7 +330,7 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
 			received++;
 
 			//printf("frame [%d] length:%d\n",received,data_len);
-			send_frames_to_radios_with_retries(src, data,
+			send_frames_to_radios_with_retries(src, dst, data,
 					data_len, flags, tx_rates, cookie);
 			//printf("\rreceived: %d tried: %d sent: %d acked: %d",
 			//		received, dropped+sent, sent, acked);
