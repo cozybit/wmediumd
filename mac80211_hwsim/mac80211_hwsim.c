@@ -2040,7 +2040,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	if (!found)
 		goto out;
 
-	skb = skb_copy(queued_skb, GFP_KERNEL);
+	skb = skb_copy(queued_skb, GFP_ATOMIC);
         if (skb == NULL)
                 goto err;
 
