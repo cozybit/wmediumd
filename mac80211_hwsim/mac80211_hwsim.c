@@ -2004,12 +2004,18 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	int frame_data_len;
 	char *frame_data;
 	struct sk_buff *skb = NULL;
+	unsigned long ret_skb_ptr;
 
 	if (!info->attrs[HWSIM_ATTR_ADDR_RECEIVER] ||
 	    !info->attrs[HWSIM_ATTR_FRAME] ||
 	    !info->attrs[HWSIM_ATTR_RX_RATE] ||
+	    !info->attrs[HWSIM_ATTR_COOKIE] ||
 	    !info->attrs[HWSIM_ATTR_SIGNAL])
 		goto out;
+
+	ret_skb_ptr = nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
+
+
 
 	dst = (struct mac_address *)nla_data(
 				   info->attrs[HWSIM_ATTR_ADDR_RECEIVER]);
