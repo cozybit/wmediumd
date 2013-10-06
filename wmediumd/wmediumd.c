@@ -107,7 +107,8 @@ out:
  * 	Send a cloned frame to the kernel space.
  */
 
-int send_cloned_frame_msg(struct mac_address *dst,
+int send_cloned_frame_msg(struct mac_address *src,
+			  struct mac_address *dst,
 			  char *data, int data_len, 
 			  int rate_idx, int signal, unsigned long cookie)
 {
@@ -121,6 +122,8 @@ int send_cloned_frame_msg(struct mac_address *dst,
 		    0, NLM_F_REQUEST, HWSIM_CMD_FRAME, VERSION_NR);
 
 	int rc;
+	rc = nla_put(msg, HWSIM_ATTR_ADDR_TRANSMITTER,
+		     sizeof(struct mac_address), src);
 	rc = nla_put(msg, HWSIM_ATTR_ADDR_RECEIVER,
 		     sizeof(struct mac_address), dst);
 	rc = nla_put(msg, HWSIM_ATTR_FRAME, data_len, data);
@@ -179,7 +182,7 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 		/*received signal level*/
 		int signal = get_signal_by_rate(rate_idx);
 
-		send_cloned_frame_msg(dst,data,data_len,
+		send_cloned_frame_msg(src,dst,data,data_len,
 				      rate_idx,signal,cookie);
 		sent++;
 		return 1;
