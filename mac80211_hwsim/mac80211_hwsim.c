@@ -635,6 +635,10 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		    sizeof(struct mac_address), data->addresses[1].addr))
 		goto nla_put_failure;
 
+	if (nla_put(skb, HWSIM_ATTR_ADDR_RECEIVER,
+		    sizeof(struct mac_address), hdr->addr1))
+		goto nla_put_failure;
+
 	/* We get the skb->data */
 	if (nla_put(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data))
 		goto nla_put_failure;
