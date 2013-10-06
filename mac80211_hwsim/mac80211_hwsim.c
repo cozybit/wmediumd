@@ -670,6 +670,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	genlmsg_end(skb, msg_head);
 	genlmsg_unicast(&init_net, skb, dst_portid);
 
+//	wiphy_debug(hw->wiphy, "snt! dst: %pM cookie:%lu\n", hdr->addr1, (unsigned long) my_skb);
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
 	return;
@@ -1998,15 +1999,17 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 					  struct genl_info *info)
 {
 
-	struct mac80211_hwsim_data *data2;
+	struct mac80211_hwsim_data *data_src, *data_dst;
 	struct ieee80211_rx_status rx_status;
-	struct mac_address *dst;
+	struct mac_address *src, *dst;
 	int frame_data_len;
 	char *frame_data;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb, *queued_skb, *tmp;
 	unsigned long ret_skb_ptr;
+	bool found = false;
 
-	if (!info->attrs[HWSIM_ATTR_ADDR_RECEIVER] ||
+	if (!info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER] ||
+	    !info->attrs[HWSIM_ATTR_ADDR_RECEIVER] ||
 	    !info->attrs[HWSIM_ATTR_FRAME] ||
 	    !info->attrs[HWSIM_ATTR_RX_RATE] ||
 	    !info->attrs[HWSIM_ATTR_COOKIE] ||
@@ -2015,45 +2018,52 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 
 	ret_skb_ptr = nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
 
-
-
+	src = (struct mac_address *)nla_data(
+				   info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
 	dst = (struct mac_address *)nla_data(
 				   info->attrs[HWSIM_ATTR_ADDR_RECEIVER]);
 
-	frame_data_len = nla_len(info->attrs[HWSIM_ATTR_FRAME]);
-	frame_data = (char *)nla_data(info->attrs[HWSIM_ATTR_FRAME]);
+	data_src = get_hwsim_data_ref_from_addr(src);
 
-	/* Allocate new skb here */
-	skb = alloc_skb(frame_data_len, GFP_KERNEL);
-	if (skb == NULL)
-		goto err;
+	if (data_src == NULL)
+		goto out;
 
-	if (frame_data_len <= IEEE80211_MAX_DATA_LEN) {
-		/* Copy the data */
-		memcpy(skb_put(skb, frame_data_len), frame_data,
-		       frame_data_len);
-	} else
-		goto err;
+	/* look for the skb matching the cookie passed back from user */
+	skb_queue_walk_safe(&data_src->pending, queued_skb, tmp) {
+		if ((unsigned long)queued_skb == ret_skb_ptr) {
+			found = true;
+			break;
+		}
+	}
 
-	data2 = get_hwsim_data_ref_from_addr(dst);
+	/* not found */
+	if (!found)
+		goto out;
 
-	if (data2 == NULL)
+	skb = skb_copy(queued_skb, GFP_KERNEL);
+        if (skb == NULL)
+                goto err;
+
+	data_dst = get_hwsim_data_ref_from_addr(dst);
+
+//	wiphy_debug(data_dst->hw->wiphy, "src: %pM dst: %pM cookie:%lu\n", src, dst, ret_skb_ptr);
+	if (data_dst == NULL)
 		goto out;
 
 	/* check if radio is configured properly */
 
-	if (data2->idle || !data2->started)
+	if (data_dst->idle || !data_dst->started)
 		goto out;
 
 	/*A frame is received from user space*/
 	memset(&rx_status, 0, sizeof(rx_status));
-	rx_status.freq = data2->channel->center_freq;
-	rx_status.band = data2->channel->band;
+	rx_status.freq = data_dst->channel->center_freq;
+	rx_status.band = data_dst->channel->band;
 	rx_status.rate_idx = nla_get_u32(info->attrs[HWSIM_ATTR_RX_RATE]);
 	rx_status.signal = nla_get_u32(info->attrs[HWSIM_ATTR_SIGNAL]);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
-	ieee80211_rx_irqsafe(data2->hw, skb);
+	ieee80211_rx_irqsafe(data_dst->hw, skb);
 
 	return 0;
 err:
