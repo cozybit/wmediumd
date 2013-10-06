@@ -108,7 +108,8 @@ out:
  */
 
 int send_cloned_frame_msg(struct mac_address *dst,
-			  char *data, int data_len, int rate_idx, int signal)
+			  char *data, int data_len, 
+			  int rate_idx, int signal, unsigned long cookie)
 {
 	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
@@ -125,6 +126,7 @@ int send_cloned_frame_msg(struct mac_address *dst,
 	rc = nla_put(msg, HWSIM_ATTR_FRAME, data_len, data);
 	rc = nla_put_u32(msg, HWSIM_ATTR_RX_RATE, rate_idx);
 	rc = nla_put_u32(msg, HWSIM_ATTR_SIGNAL, signal);
+	rc = nla_put_u64(msg, HWSIM_ATTR_COOKIE, cookie);
 
 	if(rc!=0) {
 		printf("Error filling payload\n");
@@ -158,7 +160,8 @@ int get_signal_by_rate(int rate_idx)
 
 int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 				       struct mac_address *dst,
-				       char *data, int data_len, int rate_idx)
+				       char *data, int data_len, int rate_idx,
+				       unsigned long cookie)
 {
 
 	/* At higher rates higher loss probability*/
@@ -176,7 +179,8 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 		/*received signal level*/
 		int signal = get_signal_by_rate(rate_idx);
 
-		send_cloned_frame_msg(dst,data,data_len,rate_idx,signal);
+		send_cloned_frame_msg(dst,data,data_len,
+				      rate_idx,signal,cookie);
 		sent++;
 		return 1;
 	}
@@ -262,7 +266,7 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 				*/
 				if(send_frame_msg_apply_prob_and_rate(
 					src, dst, data, data_len,
-					tx_attempts[round].idx) &&
+					tx_attempts[round].idx, cookie) &&
 					memcmp(dst, hdr->addr1,
 					sizeof(struct mac_address))==0) {
 						tx_ok = 1;
