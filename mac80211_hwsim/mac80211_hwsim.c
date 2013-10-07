@@ -615,9 +615,11 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 	/* If the queue contains MAX_QUEUE skb's drop some */
 	if (skb_queue_len(&data->pending) >= MAX_QUEUE) {
+		ieee80211_stop_queues(hw);
 		/* Droping until WARN_QUEUE level */
 		while (skb_queue_len(&data->pending) >= WARN_QUEUE)
 			skb_dequeue(&data->pending);
+		ieee80211_wake_queues(hw);
 	}
 
 	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
@@ -1933,7 +1935,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	   !info->attrs[HWSIM_ATTR_FLAGS] ||
 	   !info->attrs[HWSIM_ATTR_COOKIE] ||
 	   !info->attrs[HWSIM_ATTR_TX_INFO])
-		goto out;
+		goto err;
 
 	src = (struct mac_address *)nla_data(
 				   info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
@@ -1944,7 +1946,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	data2 = get_hwsim_data_ref_from_addr(src);
 
 	if (data2 == NULL)
-		goto out;
+		goto err;
 
 	/* look for the skb matching the cookie passed back from user */
 	skb_queue_walk_safe(&data2->pending, skb, tmp) {
@@ -1957,7 +1959,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 
 	/* not found */
 	if (!found)
-		goto out;
+		goto err;
 
 	/* Tx info received because the frame was broadcasted on user space,
 	 so we get all the necessary info: tx attempts and skb control buff */
@@ -1986,10 +1988,15 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 						   hdr->addr2);
 		}
 		txi->flags |= IEEE80211_TX_STAT_ACK;
+	} else {
+		ieee80211_free_txskb(data2->hw, skb);
+		goto out;
 	}
+
 	ieee80211_tx_status_irqsafe(data2->hw, skb);
-	return 0;
 out:
+	return 0;
+err:
 	return -EINVAL;
 
 }
