@@ -2113,6 +2113,23 @@ static struct genl_ops hwsim_ops[] = {
 	},
 };
 
+static void mac80211_hwsim_purge_pending_netlink(void)
+{
+	struct list_head tmplist, *i, *tmp;
+	struct mac80211_hwsim_data *data, *tmpdata;
+
+	INIT_LIST_HEAD(&tmplist);
+
+	spin_lock_bh(&hwsim_radio_lock);
+	list_for_each_safe(i, tmp, &hwsim_radios)
+		list_move(i, &tmplist);
+	spin_unlock_bh(&hwsim_radio_lock);
+
+	list_for_each_entry_safe(data, tmpdata, &tmplist, list) {
+		skb_queue_purge(&data->pending);
+	}
+}
+
 static int mac80211_hwsim_netlink_notify(struct notifier_block *nb,
 					 unsigned long state,
 					 void *_notify)
@@ -2127,6 +2144,7 @@ static int mac80211_hwsim_netlink_notify(struct notifier_block *nb,
 		       " socket, switching to perfect channel medium\n");
 		wmediumd_portid = 0;
 	}
+	mac80211_hwsim_purge_pending_netlink();
 	return NOTIFY_DONE;
 
 }
