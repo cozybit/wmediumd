@@ -40,6 +40,9 @@ struct nl_cb *cb;
 struct nl_cache *cache;
 struct genl_family *family;
 
+#define MAIN_FILE
+#include "globals_mobility_medium.h"
+
 int running = 0;
 struct jammer_cfg jam_cfg;
 double *prob_matrix;
@@ -50,56 +53,50 @@ static int sent = 0;
 static int dropped = 0;
 static int acked = 0;
 
-
 /*
  * 	Generates a random double value
  */
 
-double generate_random_double()
-{
+double generate_random_double() {
 
-	return rand()/((double)RAND_MAX+1);
+	return rand() / ((double) RAND_MAX + 1);
 }
 
 /*
  *	Send a tx_info frame to the kernel space.
  */
 
-int send_tx_info_frame_nl(struct mac_address *src,
-			  unsigned int flags, int signal,
-			  struct hwsim_tx_rate *tx_attempts,
-			  unsigned long cookie)
-{
+int send_tx_info_frame_nl(struct mac_address *src, unsigned int flags,
+		int signal, struct hwsim_tx_rate *tx_attempts, unsigned long cookie) {
 	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		goto out;
 	}
 
-	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family),
-		    0, NLM_F_REQUEST, HWSIM_CMD_TX_INFO_FRAME, VERSION_NR);
+	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family), 0,
+			NLM_F_REQUEST, HWSIM_CMD_TX_INFO_FRAME, VERSION_NR);
 
 	int rc;
-	rc = nla_put(msg, HWSIM_ATTR_ADDR_TRANSMITTER,
-		     sizeof(struct mac_address), src);
+	rc = nla_put(msg, HWSIM_ATTR_ADDR_TRANSMITTER, sizeof(struct mac_address),
+			src);
 	rc = nla_put_u32(msg, HWSIM_ATTR_FLAGS, flags);
 	rc = nla_put_u32(msg, HWSIM_ATTR_SIGNAL, signal);
 	rc = nla_put(msg, HWSIM_ATTR_TX_INFO,
-		     IEEE80211_MAX_RATES_PER_TX *
-		     sizeof(struct hwsim_tx_rate), tx_attempts);
+			IEEE80211_MAX_RATES_PER_TX * sizeof(struct hwsim_tx_rate),
+			tx_attempts);
 
 	rc = nla_put_u64(msg, HWSIM_ATTR_COOKIE, cookie);
 
-	if(rc!=0) {
+	if (rc != 0) {
 		printf("Error filling payload\n");
 		goto out;
 	}
 
-	nl_send_auto_complete(sock,msg);
+	nl_send_auto_complete(sock, msg);
 	nlmsg_free(msg);
 	return 0;
-out:
-	nlmsg_free(msg);
+	out: nlmsg_free(msg);
 	return -1;
 }
 
@@ -107,35 +104,33 @@ out:
  * 	Send a cloned frame to the kernel space.
  */
 
-int send_cloned_frame_msg(struct mac_address *dst,
-			  char *data, int data_len, int rate_idx, int signal)
-{
+int send_cloned_frame_msg(struct mac_address *dst, char *data, int data_len,
+		int rate_idx, int signal) {
 	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		goto out;
 	}
 
-	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family),
-		    0, NLM_F_REQUEST, HWSIM_CMD_FRAME, VERSION_NR);
+	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family), 0,
+			NLM_F_REQUEST, HWSIM_CMD_FRAME, VERSION_NR);
 
 	int rc;
-	rc = nla_put(msg, HWSIM_ATTR_ADDR_RECEIVER,
-		     sizeof(struct mac_address), dst);
+	rc = nla_put(msg, HWSIM_ATTR_ADDR_RECEIVER, sizeof(struct mac_address),
+			dst);
 	rc = nla_put(msg, HWSIM_ATTR_FRAME, data_len, data);
 	rc = nla_put_u32(msg, HWSIM_ATTR_RX_RATE, rate_idx);
 	rc = nla_put_u32(msg, HWSIM_ATTR_SIGNAL, signal);
 
-	if(rc!=0) {
+	if (rc != 0) {
 		printf("Error filling payload\n");
 		goto out;
 	}
 
-	nl_send_auto_complete(sock,msg);
+	nl_send_auto_complete(sock, msg);
 	nlmsg_free(msg);
 	return 0;
-out:
-	nlmsg_free(msg);
+	out: nlmsg_free(msg);
 	return -1;
 }
 
@@ -143,10 +138,9 @@ out:
  * 	Get a signal value by rate index
  */
 
-int get_signal_by_rate(int rate_idx)
-{
-	const int rate2signal [] =
-		{ -80,-77,-74,-71,-69,-66,-64,-62,-59,-56,-53,-50 };
+int get_signal_by_rate(int rate_idx) {
+	const int rate2signal[] = { -80, -77, -74, -71, -69, -66, -64, -62, -59,
+			-56, -53, -50 };
 	if (rate_idx >= 0 || rate_idx < IEEE80211_AVAILABLE_RATES)
 		return rate2signal[rate_idx];
 	return 0;
@@ -157,13 +151,11 @@ int get_signal_by_rate(int rate_idx)
  */
 
 int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
-				       struct mac_address *dst,
-				       char *data, int data_len, int rate_idx)
-{
+		struct mac_address *dst, char *data, int data_len, int rate_idx) {
 
 	/* At higher rates higher loss probability*/
-	double prob_per_link = find_prob_by_addrs_and_rate(prob_matrix,
-							   src,dst, rate_idx);
+	double prob_per_link = find_prob_by_addrs_and_rate(prob_matrix, src, dst,
+			rate_idx);
 	double random_double = generate_random_double();
 
 	if (random_double < prob_per_link) {
@@ -176,7 +168,7 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 		/*received signal level*/
 		int signal = get_signal_by_rate(rate_idx);
 
-		send_cloned_frame_msg(dst,data,data_len,rate_idx,signal);
+		send_cloned_frame_msg(dst, data, data_len, rate_idx, signal);
 		sent++;
 		return 1;
 	}
@@ -186,12 +178,11 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
  * 	Set a tx_rate struct to not valid values
  */
 
-void set_all_rates_invalid(struct hwsim_tx_rate* tx_rate)
-{
+void set_all_rates_invalid(struct hwsim_tx_rate* tx_rate) {
 	int i;
 	/* set up all unused rates to be -1 */
-	for (i=0; i < IEEE80211_MAX_RATES_PER_TX; i++) {
-        	tx_rate[i].idx = -1;
+	for (i = 0; i < IEEE80211_MAX_RATES_PER_TX; i++) {
+		tx_rate[i].idx = -1;
 		tx_rate[i].count = 0;
 	}
 }
@@ -199,8 +190,7 @@ void set_all_rates_invalid(struct hwsim_tx_rate* tx_rate)
 /*
  *	Determine whether we should be jamming this transmitting mac.
  */
-int jam_mac(struct jammer_cfg *jcfg, struct mac_address *src)
-{
+int jam_mac(struct jammer_cfg *jcfg, struct mac_address *src) {
 	int jam = 0, i;
 
 	for (i = 0; i < jcfg->nmacs; i++) {
@@ -217,13 +207,11 @@ int jam_mac(struct jammer_cfg *jcfg, struct mac_address *src)
  */
 
 void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
-					int data_len, unsigned int flags,
-					struct hwsim_tx_rate *tx_rates,
-					unsigned long cookie)
-{
+		int data_len, unsigned int flags, struct hwsim_tx_rate *tx_rates,
+		unsigned long cookie) {
 
 	struct mac_address *dst;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) data;
 	struct hwsim_tx_rate tx_attempts[IEEE80211_MAX_RATES_PER_TX];
 
 	int round = 0, tx_ok = 0, counter, i;
@@ -235,39 +223,37 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 	/* We prepare the tx_attempts struct */
 	set_all_rates_invalid(tx_attempts);
 
-	while (round < IEEE80211_MAX_RATES_PER_TX &&
-	       tx_rates[round].idx != -1 && tx_ok!=1) {
+	while (round < IEEE80211_MAX_RATES_PER_TX && tx_rates[round].idx != -1
+			&& tx_ok != 1) {
 
 		counter = 1;
 
 		/* Set rate index and flags used for this round */
 		tx_attempts[round].idx = tx_rates[round].idx;
 
-		while(counter <= tx_rates[round].count && tx_ok !=1 ) {
+		while (counter <= tx_rates[round].count && tx_ok != 1) {
 
 			/* Broadcast the frame to all the radio ifaces*/
-			for (i=0;i<size;i++) {
+			for (i = 0; i < size; i++) {
 
-				dst =  get_mac_address(i);
+				dst = get_mac_address(i);
 
 				/*
 				 * If origin and destination are the
 				 * same just skip this iteration
-				*/
-				if(memcmp(src,dst,sizeof(struct mac_address))
-					  == 0 ){
+				 */
+				if (memcmp(src, dst, sizeof(struct mac_address)) == 0) {
 					continue;
 				}
 
 				/* Try to send it to a radio and if
 				 * the frame is destined to this radio tx_ok
-				*/
-				if(send_frame_msg_apply_prob_and_rate(
-					src, dst, data, data_len,
-					tx_attempts[round].idx) &&
-					memcmp(dst, hdr->addr1,
-					sizeof(struct mac_address))==0) {
-						tx_ok = 1;
+				 */
+				if (send_frame_msg_apply_prob_and_rate(src, dst, data, data_len,
+						tx_attempts[round].idx)
+						&& memcmp(dst, hdr->addr1, sizeof(struct mac_address))
+								== 0) {
+					tx_ok = 1;
 				}
 			}
 			tx_attempts[round].count = counter;
@@ -279,9 +265,9 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 	if (tx_ok) {
 		/* if tx is done and acked a frame with the tx_info is
 		 * sent to original radio iface
-		*/
+		 */
 		acked++;
-		int signal = get_signal_by_rate(tx_attempts[round-1].idx);
+		int signal = get_signal_by_rate(tx_attempts[round - 1].idx);
 		/* Let's flag this frame as ACK'ed */
 		flags |= HWSIM_TX_STAT_ACK;
 		send_tx_info_frame_nl(src, flags, signal, tx_attempts, cookie);
@@ -294,37 +280,33 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
  * 	Callback function to process messages received from kernel
  */
 
-static int process_messages_cb(struct nl_msg *msg, void *arg)
-{
+static int process_messages_cb(struct nl_msg *msg, void *arg) {
 
-	struct nlattr *attrs[HWSIM_ATTR_MAX+1];
+	struct nlattr *attrs[HWSIM_ATTR_MAX + 1];
 	/* netlink header */
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	/* generic netlink header*/
 	struct genlmsghdr *gnlh = nlmsg_data(nlh);
 
-	if(gnlh->cmd == HWSIM_CMD_FRAME) {
+	if (gnlh->cmd == HWSIM_CMD_FRAME) {
 		/* we get the attributes*/
 		genlmsg_parse(nlh, 0, attrs, HWSIM_ATTR_MAX, NULL);
 		if (attrs[HWSIM_ATTR_ADDR_TRANSMITTER]) {
-			struct mac_address *src = (struct mac_address*)
-				nla_data(attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
+			struct mac_address *src = (struct mac_address*) nla_data(
+					attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
 
-			unsigned int data_len =
-				nla_len(attrs[HWSIM_ATTR_FRAME]);
-			char* data = (char*)nla_data(attrs[HWSIM_ATTR_FRAME]);
-			unsigned int flags =
-				nla_get_u32(attrs[HWSIM_ATTR_FLAGS]);
-		//	printf("flags: %d\n", flags);
-			struct hwsim_tx_rate *tx_rates =
-				(struct hwsim_tx_rate*)
-				nla_data(attrs[HWSIM_ATTR_TX_INFO]);
+			unsigned int data_len = nla_len(attrs[HWSIM_ATTR_FRAME]);
+			char* data = (char*) nla_data(attrs[HWSIM_ATTR_FRAME]);
+			unsigned int flags = nla_get_u32(attrs[HWSIM_ATTR_FLAGS]);
+			//	printf("flags: %d\n", flags);
+			struct hwsim_tx_rate *tx_rates = (struct hwsim_tx_rate*) nla_data(
+					attrs[HWSIM_ATTR_TX_INFO]);
 			unsigned long cookie = nla_get_u64(attrs[HWSIM_ATTR_COOKIE]);
 			received++;
 
 			//printf("frame [%d] length:%d\n",received,data_len);
-			send_frames_to_radios_with_retries(src, data,
-					data_len, flags, tx_rates, cookie);
+			send_frames_to_radios_with_retries(src, data, data_len, flags,
+					tx_rates, cookie);
 			//printf("\rreceived: %d tried: %d sent: %d acked: %d",
 			//		received, dropped+sent, sent, acked);
 		}
@@ -336,17 +318,16 @@ static int process_messages_cb(struct nl_msg *msg, void *arg)
  * 	Send a register message to kernel
  */
 
-int send_register_msg()
-{
+int send_register_msg() {
 	struct nl_msg *msg = nlmsg_alloc();
 	if (!msg) {
 		printf("Error allocating new message MSG!\n");
 		return -1;
 	}
 
-	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family),
-		    0, NLM_F_REQUEST, HWSIM_CMD_REGISTER, VERSION_NR);
-	nl_send_auto_complete(sock,msg);
+	genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, genl_family_get_id(family), 0,
+			NLM_F_REQUEST, HWSIM_CMD_REGISTER, VERSION_NR);
+	nl_send_auto_complete(sock, msg);
 	nlmsg_free(msg);
 
 	return 0;
@@ -360,14 +341,11 @@ void kill_handler() {
 	running = 0;
 }
 
-
-
 /*
  * 	Init netlink
  */
 
-void init_netlink()
-{
+void init_netlink() {
 
 	cb = nl_cb_alloc(NL_CB_CUSTOM);
 	if (!cb) {
@@ -399,8 +377,7 @@ void init_netlink()
  *	Print the CLI help
  */
 
-void print_help(int exval)
-{
+void print_help(int exval) {
 	printf("wmediumd v%s - a wireless medium simulator\n", VERSION_STR);
 	printf("wmediumd [-h] [-V] [-c FILE] [-o FILE]\n\n");
 
@@ -413,28 +390,27 @@ void print_help(int exval)
 	exit(exval);
 }
 
-
 int main(int argc, char* argv[]) {
 
 	int opt, ifaces;
 
 	/* Set stdout buffering to line mode */
-	setvbuf (stdout, NULL, _IOLBF, BUFSIZ);
+	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
 	/* no arguments given */
-	if(argc == 1) {
+	if (argc == 1) {
 		fprintf(stderr, "This program needs arguments....\n\n");
 		print_help(EXIT_FAILURE);
 	}
 
-	while((opt = getopt(argc, argv, "hVc:m:o:")) != -1) {
-		switch(opt) {
+	while ((opt = getopt(argc, argv, "hVc:m:o:")) != -1) {
+		switch (opt) {
 		case 'h':
 			print_help(EXIT_SUCCESS);
-    			break;
+			break;
 		case 'V':
 			printf("wmediumd v%s - a wireless medium simulator "
-			       "for mac80211_hwsim\n", VERSION_STR);
+					"for mac80211_hwsim\n", VERSION_STR);
 			exit(EXIT_SUCCESS);
 			break;
 		case 'c':
@@ -445,25 +421,26 @@ int main(int argc, char* argv[]) {
 		case 'm':
 			printf("Input mobility and medium configuration file: %s\n",
 					optarg);
+			load_mobility_medium_config(optarg);
 			break;
 		case 'o':
 			printf("Output configuration file: %s\n", optarg);
 			printf("How many interfaces are active?\n");
-			scanf("%d",&ifaces);
+			scanf("%d", &ifaces);
 			if (ifaces < 2) {
 				printf("active interfaces must be at least 2\n");
 				exit(EXIT_FAILURE);
 			}
-				write_config(optarg, ifaces, 0.0);
+			write_config(optarg, ifaces, 0.0);
 			break;
 		case ':':
 			printf("wmediumd: Error - Option `%c' "
-			       "needs a value\n\n", optopt);
+					"needs a value\n\n", optopt);
 			print_help(EXIT_FAILURE);
 			break;
 		case '?':
 			printf("wmediumd: Error - No such option:"
-			       " `%c'\n\n", optopt);
+					" `%c'\n\n", optopt);
 			print_help(EXIT_FAILURE);
 			break;
 		}
@@ -473,7 +450,6 @@ int main(int argc, char* argv[]) {
 	if (optind < argc)
 		print_help(EXIT_FAILURE);
 
-
 	/*Handle kill signals*/
 	running = 1;
 	signal(SIGUSR1, kill_handler);
@@ -482,11 +458,11 @@ int main(int argc, char* argv[]) {
 	init_netlink();
 
 	/*Send a register msg to the kernel*/
-	if (send_register_msg()==0)
+	if (send_register_msg() == 0)
 		printf("REGISTER SENT!\n");
 
 	/*We wait for incoming msg*/
-	while(running) {
+	while (running) {
 		nl_recvmsgs_default(sock);
 	}
 
