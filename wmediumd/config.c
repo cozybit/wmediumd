@@ -437,6 +437,79 @@ int load_mobility_medium_config(const char *file) {
 }
 
 /*
+ * Alternative function to load_config() to load app required data without probability matrix.
+ */
+int load_basic_config(const char *file) {
+
+	config_t cfg, *cf;
+	const config_setting_t *ids, *prob_list, *mat_array, *jammer_s;
+	int count_ids, rates_prob, i, j;
+	int count_value, rates_value;
+
+	/*initialize the config file*/
+	cf = &cfg;
+	config_init(cf);
+
+	/*read the file*/
+	if (!config_read_file(cf, file)) {
+		printf("Error loading file %s at line:%d, reason: %s\n", file,
+				config_error_line(cf), config_error_text(cf));
+		config_destroy(cf);
+		exit(EXIT_FAILURE);
+	}
+
+	/* get jammer settings */
+	if ((jammer_s = config_lookup(cf, "jam"))) {
+		switch (config_setting_type(jammer_s)) {
+		case CONFIG_TYPE_STRING:
+			if (!strcmp(config_setting_get_string(jammer_s), "all")) {
+				jam_cfg.jam_all = 1;
+			}
+			break;
+		case CONFIG_TYPE_ARRAY:
+			jam_cfg.nmacs = config_setting_length(jammer_s);
+			jam_cfg.macs = malloc(sizeof(struct mac_address) * jam_cfg.nmacs);
+			if (!jam_cfg.macs) {
+				printf("couldn't allocate jamming mac table!\n");
+				exit(EXIT_FAILURE);
+			}
+			for (i = 0; i < jam_cfg.nmacs; i++) {
+				jam_cfg.macs[i] = string_to_mac_address(
+						config_setting_get_string_elem(jammer_s, i));
+			}
+			break;
+		}
+	}
+
+	/*let's parse the values*/
+	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
+			(long int *) &count_value);
+	ids = config_lookup(cf, "ifaces_with_mobility.ids");
+	count_ids = config_setting_length(ids);
+	size = count_ids;
+	/*cross check*/
+	if (count_value != count_ids) {
+		printf("Error on ifaces_with_mobility.count_ids");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("#_if = %d\n", count_ids);
+	/*Initialize the probability*/
+	prob_matrix = init_probability(count_ids);
+	/*Fill the mac_addr*/
+	for (i = 0; i < count_ids; i++) {
+		const char *str = config_setting_get_string_elem(ids, i);
+		put_mac_address(string_to_mac_address(str), i);
+	}
+
+	/*Print the mac_addr array*/
+	print_mac_address_array();
+
+	config_destroy(cf);
+	return (EXIT_SUCCESS);
+}
+
+/*
  * Theoretical maximum distance in meters calculated with a link budged including free space equation
  */
 void calcule_max_distance(double carr_freq, double trans_pow, double trans_gain,

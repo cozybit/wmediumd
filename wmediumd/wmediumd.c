@@ -175,6 +175,35 @@ int send_frame_msg_apply_prob_and_rate(struct mac_address *src,
 }
 
 /*
+ * 	Send a frame applying the loss probability of the link
+ */
+
+int send_frame_msg_apply_prob_mobility_and_medium(struct mac_address *src,
+		struct mac_address *dst, char *data, int data_len, int rate_idx) {
+	/*Probabilities are defined per 1000 units to perform them using integers*/
+	int random_value = rand() % 1000 + 1;
+
+	int loss_probability = 500;//Fix value for testing
+
+	printf("random_value < loss_probability: %d < %d\n", random_value, loss_probability);
+
+	if (random_value < loss_probability) {
+		printf("Dropped\n");
+		dropped++;
+		return 0;
+	} else {
+
+		printf("Sent\n");
+		/*received signal level*/
+		int signal = get_signal_by_rate(rate_idx);
+
+		send_cloned_frame_msg(dst, data, data_len, rate_idx, signal);
+		sent++;
+		return 1;
+	}
+}
+
+/*
  * 	Set a tx_rate struct to not valid values
  */
 
@@ -245,15 +274,17 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 				if (memcmp(src, dst, sizeof(struct mac_address)) == 0) {
 					continue;
 				}
+				if (mobility == 0) {
 
-				/* Try to send it to a radio and if
-				 * the frame is destined to this radio tx_ok
-				 */
-				if (send_frame_msg_apply_prob_and_rate(src, dst, data, data_len,
-						tx_attempts[round].idx)
-						&& memcmp(dst, hdr->addr1, sizeof(struct mac_address))
-								== 0) {
-					tx_ok = 1;
+					if (send_frame_msg_apply_prob_and_rate(src, dst, data,	data_len, tx_attempts[round].idx)
+							&& memcmp(dst, hdr->addr1, sizeof(struct mac_address)) == 0) {
+						tx_ok = 1;
+					}
+				} else if (mobility == 1) {
+					if (send_frame_msg_apply_prob_mobility_and_medium(src,	dst, data, data_len, tx_attempts[round].idx)
+							&& memcmp(dst, hdr->addr1,	sizeof(struct mac_address)) == 0) {
+						tx_ok = 1;
+					}
 				}
 			}
 			tx_attempts[round].count = counter;
@@ -414,13 +445,16 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_SUCCESS);
 			break;
 		case 'c':
+			mobility = 0;
 			printf("Input configuration file: %s\n", optarg);
 			load_config(optarg);
 			print_prob_matrix(prob_matrix);
 			break;
 		case 'm':
+			mobility = 1;
 			printf("Input mobility and medium configuration file: %s\n",
 					optarg);
+			load_basic_config(optarg);
 			load_mobility_medium_config(optarg);
 			break;
 		case 'o':
