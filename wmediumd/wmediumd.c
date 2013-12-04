@@ -183,9 +183,9 @@ int send_frame_msg_apply_prob_mobility_and_medium(struct mac_address *src,
 	/*Probabilities are defined per 1000 units to perform them using integers*/
 	int random_value = rand() % 1000 + 1;
 
-	int loss_probability = 500;//Fix value for testing
+	int loss_probability = find_prob_by_addrs_mobility_and_medium(src, dst);
 
-	printf("random_value < loss_probability: %d < %d\n", random_value, loss_probability);
+	//printf("random_value < loss_probability: %d < %d\n", random_value, loss_probability);
 
 	if (random_value < loss_probability) {
 		printf("Dropped\n");
@@ -405,6 +405,18 @@ void init_netlink() {
 }
 
 /*
+ * Initialized the mobility and medium extension need variables
+ */
+
+void init_mobility_medium_globals() {
+	struct timeval current_time;
+	gettimeofday(&current_time, NULL );
+	start_execution_timestamp = current_time.tv_sec;
+	last_def_position = 0;
+	dcurrent = 0;
+}
+
+/*
  *	Print the CLI help
  */
 
@@ -456,6 +468,7 @@ int main(int argc, char* argv[]) {
 					optarg);
 			load_basic_config(optarg);
 			load_mobility_medium_config(optarg);
+			init_mobility_medium_globals();
 			break;
 		case 'o':
 			printf("Output configuration file: %s\n", optarg);

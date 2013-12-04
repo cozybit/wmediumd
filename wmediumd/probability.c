@@ -26,6 +26,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "globals_mobility_medium.h"
+#include <sys/time.h>
+#include <math.h>
+#include "wmediumd.h"
+
 #include "probability.h"
 #include "ieee80211.h"
 
@@ -157,8 +162,99 @@ double find_prob_by_addrs_and_rate (double *aMatrix, struct mac_address *src,
 }
 
 
+/*
+ *	Returns the loss probability for a given radio link, mobility and medium
+ * 	If an error occurs returns -1;
+ */
 
+int find_prob_by_addrs_mobility_and_medium(struct mac_address *src,
+		struct mac_address *dst) {
 
+	//Probabilities are defined per 1000 units to perform them using integers
+	int random_value = rand() % 1000 + 1, distance_prob = 0, loss_probability =
+			0, fading = 0, src_radio_pos, dst_radio_pos, time_pos;
+	unsigned long int execution_time;
+
+	struct timeval current_time;
+	gettimeofday(&current_time, NULL );
+
+	execution_time = current_time.tv_sec - start_execution_timestamp;
+
+	src_radio_pos = find_radio_pos_by_mac_address(src);
+	dst_radio_pos = find_radio_pos_by_mac_address(dst);
+	//Both stations need to have same time line definition, for that we can use or src or dst to take the time.
+	if (execution_time
+			> (int) mob_med_cfg.radios[src_radio_pos].positions[(last_def_position
+					+ 1)].time
+			&& last_def_position
+					< (mob_med_cfg.radios[src_radio_pos].count_positions - 1)) {
+		last_def_position++;
+		dcurrent =
+				find_distance_two_points(
+						mob_med_cfg.radios[src_radio_pos].positions[last_def_position].x,
+						mob_med_cfg.radios[src_radio_pos].positions[last_def_position].y,
+						mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].x,
+						mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].y); /*meters*/
+	}
+
+	if (dcurrent <= mob_med_cfg.dmax / 4) {
+		distance_prob = 0;
+	} else {
+		distance_prob = (((float) dcurrent - (float) mob_med_cfg.dmax / 4.0)
+				/ ((float) mob_med_cfg.dmax - ((float) mob_med_cfg.dmax / 4.0)))
+				* 1000; //1000 is a scale factor
+	}
+
+	if (random_value < mob_med_cfg.fading_probability) {
+		fading = mob_med_cfg.fading_intensity;
+	} else {
+		fading = 0;
+	}
+
+	loss_probability = distance_prob + mob_med_cfg.interference_tunner + fading;
+
+	if (debug == 1) {
+		printf(
+				"DEBUG INFO. POSITIONS: p1=(%d,%d) p2=(%d,%d) EXEC_TIME: %dsec. LAST_ARR_INDEX: %d DISTANCE_BETWEEN_TX_RX: %d\n",
+				mob_med_cfg.radios[src_radio_pos].positions[last_def_position].x,
+				mob_med_cfg.radios[src_radio_pos].positions[last_def_position].y,
+				mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].x,
+				mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].y,
+				execution_time, last_def_position, dcurrent);
+
+		printf(
+				"PROBABILITIES. random_value %d | distance_prob %d (%d%) | loss_probability %d (%d%) | fading %d| dcurrent %d | dmax %d \n",
+				random_value, distance_prob, (distance_prob / 10),
+				loss_probability, (loss_probability / 10), fading, dcurrent,
+				(int) mob_med_cfg.dmax);
+	}
+
+	return loss_probability;
+}
+
+/*
+ * Returns the position inside the radios array given a mac_address
+ */
+int find_radio_pos_by_mac_address(struct mac_address *addr) {
+
+	int i = 0;
+
+	while (memcmp(&mob_med_cfg.radios[i].mac, addr, sizeof(struct mac_address))
+			!= 0 && i < mob_med_cfg.count_ids) {
+		i++;
+	}
+
+	return i;
+}
+
+/*
+ * Calculates the distance between two points on a 2D plane
+ */
+int find_distance_two_points(int x1, int y1, int x2, int y2) {
+
+	return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+
+}
 
 /*
  *	Init all the probability data
