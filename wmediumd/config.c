@@ -371,6 +371,8 @@ int load_mobility_medium_config(const char *file) {
 	}
 
 	//Calculate dmax
+	calcule_max_distance(carrier_frequency, transmit_power, transmit_gain,
+				receiver_gain, receiver_min_power, &mob_med_cfg.dmax);
 
 	int i, j, count_radios, count_ids, pos_time_list_lenght;
 	config_setting_t *ids;
@@ -434,6 +436,23 @@ int load_mobility_medium_config(const char *file) {
 
 }
 
+/*
+ * Theoretical maximum distance in meters calculated with a link budged including free space equation
+ */
+void calcule_max_distance(double carr_freq, double trans_pow, double trans_gain,
+		double rec_gain, double rec_min_pow, double *dmax) {
+
+	double lambda, pi = 3.14159265358979323846, c = 299792458.0, first, second,
+			third;
+
+	lambda = c / carr_freq;
+
+	first = (trans_pow * trans_gain * rec_gain) / rec_min_pow;
+	second = abs(pow(first,1.0/2.0));
+	third = ((double) 4.0 * pi) / lambda;
+
+	*dmax = second / third;
+}
 
 /*
  * This function prints mobility and medium configurations
@@ -443,7 +462,8 @@ void print_mobility_medium_configuration() {
 	printf("===============================================\n");
 	printf("      PRINT MOBILITI MEDIUM CONFIGURATION      \n");
 	printf("===============================================\n\n");
-	printf("dmax               =  XX [meters](theoretical max distance)\n");
+	printf("dmax               =  %f [meters](theoretical max distance)\n",
+			mob_med_cfg.dmax);
 	printf(
 			"interference_tunner=  %d (modeled with additional loss probability of %d %)\n",
 			mob_med_cfg.interference_tunner,
