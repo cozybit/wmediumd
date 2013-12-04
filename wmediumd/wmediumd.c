@@ -427,7 +427,7 @@ int main(int argc, char* argv[]) {
 		print_help(EXIT_FAILURE);
 	}
 
-	while((opt = getopt(argc, argv, "hVc:o:")) != -1) {
+	while((opt = getopt(argc, argv, "hVc:m:o:")) != -1) {
 		switch(opt) {
 		case 'h':
 			print_help(EXIT_SUCCESS);
@@ -440,6 +440,11 @@ int main(int argc, char* argv[]) {
 		case 'c':
 			printf("Input configuration file: %s\n", optarg);
 			load_config(optarg);
+			print_prob_matrix(prob_matrix);
+			break;
+		case 'm':
+			printf("Input mobility and medium configuration file: %s\n",
+					optarg);
 			break;
 		case 'o':
 			printf("Output configuration file: %s\n", optarg);
@@ -468,7 +473,6 @@ int main(int argc, char* argv[]) {
 	if (optind < argc)
 		print_help(EXIT_FAILURE);
 
-	print_prob_matrix(prob_matrix);
 
 	/*Handle kill signals*/
 	running = 1;
