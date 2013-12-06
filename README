@@ -1,6 +1,5 @@
 This folder contains:
 
-mac80211_hwsim/ -> Modified mac80211_hwsim module to support userspace frame tx.
 rawsocket/ 	-> Raw socket based ping-pong application to test stability and loss probability behaviour. 
 wmediumd/ 	-> User space application to apply loss probability per link.
 wconfig/	-> Java based tool to create advanced config files for wmediumd.
@@ -16,34 +15,21 @@ Once all dependencies are satisfied, just execute make on the main folder, binar
 
 ***Execution of applications***
 
-[mac80211_hwsim]
-
-Modified mac80211_hwsim module starts in no wmediumd mode, so there is not loss probability applied to the tx frames, it just registers the custom generic netlink family, and waits until an user application is registered. When an application registers, all transmited frames will be handled by this user space application. When the registered application stops listening to the kernel module, the module will return to NO wmediumd mode automatically, and will not apply any loss probability.
-
-- To load the module and setup a simple mesh containing two nodes:
-
- $ cd mac80211_hwsim
- $ ./script.sh (It will ask for superuser permission )
- 
-- To unload the module just execute sudo rmmod mac80211_hwsim
-
 [wmediumd]
 
 The user application is responsible for handling the frames sent from the kernel space, this sample application creates a simple probability matrix with the same probability values per link. 
 
-- To launch the application in configuration mode:
+- To launch the application in simulation medium mobility mode (superuser is required and check for cfg-examples/mobility.cfg config file example):
 
  $ cd wmediumd
- $ ./wmediumd -o [FILE]
-
-It will create a new FILE with the a sample configuration schema.
-
-- To launch the application in simulation mode (superuser is required):
+ $ sudo ./wmediumd -m [FILE]
+ 
+- To launch the application in simulation mode and with probability matrix config (superuser is required) :
 
  $ cd wmediumd
  $ sudo ./wmediumd -c [FILE]
 
-Once launch it will show all the probability matrix and the transmission counters.
+Once launch it will show all the scenario configured parameters.
 
 NOTE: It is necessary to provide a configuration file to start the simulation.
       Inside wmediumd/cfg-examples you can find multiple config file samples.
@@ -82,5 +68,3 @@ To launch the application:
  $ java - jar wconfig.jar 
 
 Enjoy!
-
-
