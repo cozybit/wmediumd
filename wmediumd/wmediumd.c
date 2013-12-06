@@ -274,13 +274,13 @@ void send_frames_to_radios_with_retries(struct mac_address *src, char*data,
 				if (memcmp(src, dst, sizeof(struct mac_address)) == 0) {
 					continue;
 				}
-				if (mobility == 0) {
+				if (mob_med_cfg.mobility == 0) {
 
 					if (send_frame_msg_apply_prob_and_rate(src, dst, data,	data_len, tx_attempts[round].idx)
 							&& memcmp(dst, hdr->addr1, sizeof(struct mac_address)) == 0) {
 						tx_ok = 1;
 					}
-				} else if (mobility == 1) {
+				} else if (mob_med_cfg.mobility == 1) {
 					if (send_frame_msg_apply_prob_mobility_and_medium(src,	dst, data, data_len, tx_attempts[round].idx)
 							&& memcmp(dst, hdr->addr1,	sizeof(struct mac_address)) == 0) {
 						tx_ok = 1;
@@ -411,9 +411,9 @@ void init_netlink() {
 void init_mobility_medium_globals() {
 	struct timeval current_time;
 	gettimeofday(&current_time, NULL );
-	start_execution_timestamp = current_time.tv_sec;
-	last_def_position = 0;
-	dcurrent = 0;
+	mob_med_cfg.start_execution_timestamp = current_time.tv_sec;
+	mob_med_cfg.last_def_position = 0;
+	mob_med_cfg.dcurrent = 0;
 }
 
 /*
@@ -457,13 +457,13 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_SUCCESS);
 			break;
 		case 'c':
-			mobility = 0;
+			mob_med_cfg.mobility = 0;
 			printf("Input configuration file: %s\n", optarg);
 			load_config(optarg);
 			print_prob_matrix(prob_matrix);
 			break;
 		case 'm':
-			mobility = 1;
+			mob_med_cfg.mobility = 1;
 			printf("Input mobility and medium configuration file: %s\n",
 					optarg);
 			load_basic_config(optarg);
@@ -514,6 +514,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	/*Free all memory*/
+	free(mob_med_cfg.radios);
 	free(sock);
 	free(cb);
 	free(cache);

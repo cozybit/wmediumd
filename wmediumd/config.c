@@ -309,7 +309,7 @@ int load_mobility_medium_config(const char *file) {
 
 	//Variable reading and writting to settings struct mob_med_cfg
 	//Read of permanent data
-	if (config_lookup_int(cf, "debug", (long int *) &debug) != CONFIG_TRUE) {
+	if (config_lookup_int(cf, "debug", (long int *) &mob_med_cfg.debug) != CONFIG_TRUE) {
 		printf("\n\nError reading config file parameter: debug.\n\n");
 		exit(EXIT_FAILURE);
 	}
@@ -361,7 +361,7 @@ int load_mobility_medium_config(const char *file) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (debug == 1) {
+	if (mob_med_cfg.debug == 1) {
 		printf("=================DEBUG INFO====================\n");
 		printf("carrier_frequency: %f [Hz]\n", carrier_frequency);
 		printf("transmit_power: %f [Watts]\n", transmit_power);
@@ -379,6 +379,8 @@ int load_mobility_medium_config(const char *file) {
 	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
 			(long int *) &count_radios);
 
+	mob_med_cfg.radios= malloc(count_radios * sizeof(struct radio_mobility));
+
 	ids = config_lookup(cf, "ifaces_with_mobility.ids");
 	mob_med_cfg.count_ids = config_setting_length(ids);
 
@@ -393,6 +395,7 @@ int load_mobility_medium_config(const char *file) {
 		config_lookup_int(cf, "ifaces_with_mobility.count_positions_time",
 				(long int *) &mob_med_cfg.radios[i].count_positions);
 		const char *str = config_setting_get_string_elem(ids, i);
+		mob_med_cfg.radios[i].positions = malloc(mob_med_cfg.radios[i].count_positions * sizeof(struct position_time));
 		mob_med_cfg.radios[i].mac = string_to_mac_address(str);
 	}
 

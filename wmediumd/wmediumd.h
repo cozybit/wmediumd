@@ -65,17 +65,21 @@ struct position_time {
 struct radio_mobility {
 	struct mac_address mac;
 	int count_positions;
-	struct position_time positions[100];
+	struct position_time *positions;
 };
 
 struct mobility_medium_cfg {
+	int debug;
+	int mobility;
+	unsigned long int start_execution_timestamp;
+	int last_def_position;
+	int dcurrent;
 	double dmax;
 	int interference_tunner;
 	int fading_probability;
 	int fading_intensity;
 	int count_ids;
-	struct radio_mobility radios[100];
-
+	struct radio_mobility *radios;
 };
 
 #endif /* WMEDIUMD_H_ */

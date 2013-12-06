@@ -178,29 +178,29 @@ int find_prob_by_addrs_mobility_and_medium(struct mac_address *src,
 	struct timeval current_time;
 	gettimeofday(&current_time, NULL );
 
-	execution_time = current_time.tv_sec - start_execution_timestamp;
+	execution_time = current_time.tv_sec - mob_med_cfg.start_execution_timestamp;
 
 	src_radio_pos = find_radio_pos_by_mac_address(src);
 	dst_radio_pos = find_radio_pos_by_mac_address(dst);
 	//Both stations need to have same time line definition, for that we can use or src or dst to take the time.
 	if (execution_time
-			> (int) mob_med_cfg.radios[src_radio_pos].positions[(last_def_position
+			> (int) mob_med_cfg.radios[src_radio_pos].positions[(mob_med_cfg.last_def_position
 					+ 1)].time
-			&& last_def_position
+			&& mob_med_cfg.last_def_position
 					< (mob_med_cfg.radios[src_radio_pos].count_positions - 1)) {
-		last_def_position++;
-		dcurrent =
+		mob_med_cfg.last_def_position++;
+		mob_med_cfg.dcurrent =
 				find_distance_two_points(
-						mob_med_cfg.radios[src_radio_pos].positions[last_def_position].x,
-						mob_med_cfg.radios[src_radio_pos].positions[last_def_position].y,
-						mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].x,
-						mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].y); /*meters*/
+						mob_med_cfg.radios[src_radio_pos].positions[mob_med_cfg.last_def_position].x,
+						mob_med_cfg.radios[src_radio_pos].positions[mob_med_cfg.last_def_position].y,
+						mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].x,
+						mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].y); /*meters*/
 	}
 
-	if (dcurrent <= mob_med_cfg.dmax / 4) {
+	if (mob_med_cfg.dcurrent <= mob_med_cfg.dmax / 4) {
 		distance_prob = 0;
 	} else {
-		distance_prob = (((float) dcurrent - (float) mob_med_cfg.dmax / 4.0)
+		distance_prob = (((float) mob_med_cfg.dcurrent - (float) mob_med_cfg.dmax / 4.0)
 				/ ((float) mob_med_cfg.dmax - ((float) mob_med_cfg.dmax / 4.0)))
 				* 1000; //1000 is a scale factor
 	}
@@ -213,19 +213,19 @@ int find_prob_by_addrs_mobility_and_medium(struct mac_address *src,
 
 	loss_probability = distance_prob + mob_med_cfg.interference_tunner + fading;
 
-	if (debug == 1) {
+	if (mob_med_cfg.debug == 1) {
 		printf(
 				"DEBUG INFO. POSITIONS: p1=(%d,%d) p2=(%d,%d) EXEC_TIME: %dsec. LAST_ARR_INDEX: %d DISTANCE_BETWEEN_TX_RX: %d\n",
-				mob_med_cfg.radios[src_radio_pos].positions[last_def_position].x,
-				mob_med_cfg.radios[src_radio_pos].positions[last_def_position].y,
-				mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].x,
-				mob_med_cfg.radios[dst_radio_pos].positions[last_def_position].y,
-				execution_time, last_def_position, dcurrent);
+				mob_med_cfg.radios[src_radio_pos].positions[mob_med_cfg.last_def_position].x,
+				mob_med_cfg.radios[src_radio_pos].positions[mob_med_cfg.last_def_position].y,
+				mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].x,
+				mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].y,
+				execution_time, mob_med_cfg.last_def_position, mob_med_cfg.dcurrent);
 
 		printf(
 				"PROBABILITIES. random_value %d | distance_prob %d (%d%) | loss_probability %d (%d%) | fading %d| dcurrent %d | dmax %d \n",
 				random_value, distance_prob, (distance_prob / 10),
-				loss_probability, (loss_probability / 10), fading, dcurrent,
+				loss_probability, (loss_probability / 10), fading, mob_med_cfg.dcurrent,
 				(int) mob_med_cfg.dmax);
 	}
 
