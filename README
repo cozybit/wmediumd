@@ -19,15 +19,15 @@ Once all dependencies are satisfied, just execute make on the main folder, binar
 
 The user application is responsible for handling the frames sent from the kernel space, this sample application creates a simple probability matrix with the same probability values per link. 
 
-- To launch the application in simulation medium mobility mode (superuser is required and check for cfg-examples/mobility.cfg config file example):
-
- $ cd wmediumd
- $ sudo ./wmediumd -m [FILE]
- 
 - To launch the application in simulation mode and with probability matrix config (superuser is required) :
 
  $ cd wmediumd
  $ sudo ./wmediumd -c [FILE]
+
+- To launch the application in simulation medium mobility mode (superuser is required and check for cfg-examples/mobility.cfg config file example):
+
+ $ cd wmediumd
+ $ sudo ./wmediumd -m [FILE]
 
 Once launch it will show all the scenario configured parameters.
 
