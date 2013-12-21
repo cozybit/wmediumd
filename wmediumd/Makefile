@@ -44,7 +44,7 @@ CFLAGS += $(shell $(PKG_CONFIG) --cflags $(NLLIBNAME))
 NLVERSION :=$(shell $(PKG_CONFIG) --print-provides $(NLLIBNAME))
 
 CFLAGS+=-DVERSION_STR=$(VERSION_STR) -g
-LDFLAGS+=-lconfig 
+LDFLAGS+=-lconfig -lm
 OBJECTS=wmediumd.o probability.o mac_address.o config.o
 
 all: wmediumd 

@@ -220,7 +220,7 @@ int find_prob_by_addrs_mobility_and_medium(struct mac_address *src,
 				mob_med_cfg.radios[src_radio_pos].positions[mob_med_cfg.last_def_position].y,
 				mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].x,
 				mob_med_cfg.radios[dst_radio_pos].positions[mob_med_cfg.last_def_position].y,
-				execution_time, mob_med_cfg.last_def_position, mob_med_cfg.dcurrent);
+				(int)execution_time, mob_med_cfg.last_def_position, mob_med_cfg.dcurrent);
 
 		printf(
 				"PROBABILITIES. random_value %d | distance_prob %d (%d%) | loss_probability %d (%d%) | fading %d| dcurrent %d | dmax %d \n",

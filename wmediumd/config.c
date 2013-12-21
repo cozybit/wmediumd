@@ -24,6 +24,7 @@
 #include <libconfig.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "probability.h"
 #include "wmediumd.h"
@@ -285,6 +286,71 @@ int load_config(const char *file)
 }
 
 /*
+ * Theoretical maximum distance in meters calculated with a link budged including free space equation
+ */
+void calcule_max_distance(double carr_freq, double trans_pow, double trans_gain,
+		double rec_gain, double rec_min_pow, double *dmax) {
+
+	double lambda, pi = 3.14159265358979323846, c = 299792458.0, first, second,
+			third;
+
+	lambda = c / carr_freq;
+
+	first = (trans_pow * trans_gain * rec_gain) / rec_min_pow;
+	second = abs(pow(first,1.0/2.0));
+	third = (4.0 * pi) / lambda;
+
+	*dmax = second / third;
+}
+
+/*
+ * This function prints mobility and medium configurations
+ */
+void print_mobility_medium_configuration() {
+	int i, j;
+	printf("===============================================\n");
+	printf("      PRINT MOBILITI MEDIUM CONFIGURATION      \n");
+	printf("===============================================\n\n");
+	printf("dmax               =  %f [meters](theoretical max distance)\n",
+			mob_med_cfg.dmax);
+	printf(
+			"interference_tunner=  %d (modeled with additional loss probability of %d %)\n",
+			mob_med_cfg.interference_tunner,
+			(mob_med_cfg.interference_tunner * 100 / 1000));
+	printf("fading_probability =  %d (probability that fading appears %d %)\n",
+			mob_med_cfg.fading_probability,
+			(mob_med_cfg.fading_probability * 100 / 1000));
+	printf(
+			"fading_intensity   =  %d (fading intensity modeled with additional loss probability %d %)\n",
+			mob_med_cfg.fading_intensity,
+			(mob_med_cfg.fading_intensity * 100 / 1000));
+	printf("count_ids          =  %d\n\n", mob_med_cfg.count_ids);
+	printf("MAC ADRESSES");
+	for (i = 0; i < mob_med_cfg.count_ids; i++) {
+		printf("\n\nA[%d]:%02X:%02X:%02X:%02X:%02X:%02X\n", i,
+				mob_med_cfg.radios[i].mac.addr[0],
+				mob_med_cfg.radios[i].mac.addr[1],
+				mob_med_cfg.radios[i].mac.addr[2],
+				mob_med_cfg.radios[i].mac.addr[3],
+				mob_med_cfg.radios[i].mac.addr[4],
+				mob_med_cfg.radios[i].mac.addr[5]);
+		printf("Radio positions (time|x|y) [seconds|meters|meters] :\n");
+		for (j = 0; j < mob_med_cfg.radios[i].count_positions; j++) {
+			printf("%.1f|%d|%d", mob_med_cfg.radios[i].positions[j].time,
+					mob_med_cfg.radios[i].positions[j].x,
+					mob_med_cfg.radios[i].positions[j].y);
+			if (j < mob_med_cfg.radios[i].count_positions - 1)
+				printf(" -> ");
+
+		}
+
+	}
+	printf("\n===============================================\n");
+	printf("                   END                         \n");
+	printf("===============================================\n");
+}
+
+/*
  * Load required mobility and medium params from config file
  */
 int load_mobility_medium_config(const char *file) {
@@ -309,24 +375,24 @@ int load_mobility_medium_config(const char *file) {
 
 	//Variable reading and writting to settings struct mob_med_cfg
 	//Read of permanent data
-	if (config_lookup_int(cf, "debug", (long int *) &mob_med_cfg.debug) != CONFIG_TRUE) {
+	if (config_lookup_int(cf, "debug", (int *) &mob_med_cfg.debug) != CONFIG_TRUE) {
 		printf("\n\nError reading config file parameter: debug.\n\n");
 		exit(EXIT_FAILURE);
 	}
 	if (config_lookup_int(cf, "interference_tunner",
-			(long int *) &mob_med_cfg.interference_tunner) != CONFIG_TRUE) {
+			(int *) &mob_med_cfg.interference_tunner) != CONFIG_TRUE) {
 		printf(
 				"\n\nError reading config file parameter: interference_tunner.\n\n");
 		exit(EXIT_FAILURE);
 	}
 	if (config_lookup_int(cf, "fading_probability",
-			(long int *) &mob_med_cfg.fading_probability) != CONFIG_TRUE) {
+			(int *) &mob_med_cfg.fading_probability) != CONFIG_TRUE) {
 		printf(
 				"\n\nError reading config file parameter: fading_probability.\n\n");
 		exit(EXIT_FAILURE);
 	}
 	if (config_lookup_int(cf, "fading_intensity",
-			(long int *) &mob_med_cfg.fading_intensity) != CONFIG_TRUE) {
+			(int *) &mob_med_cfg.fading_intensity) != CONFIG_TRUE) {
 		printf(
 				"\n\nError reading config file parameter: fading_intensity.\n\n");
 		exit(EXIT_FAILURE);
@@ -377,7 +443,7 @@ int load_mobility_medium_config(const char *file) {
 	int i, j, count_radios, count_ids, pos_time_list_lenght;
 	config_setting_t *ids;
 	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
-			(long int *) &count_radios);
+			(int *) &count_radios);
 
 	mob_med_cfg.radios= malloc(count_radios * sizeof(struct radio_mobility));
 
@@ -393,7 +459,7 @@ int load_mobility_medium_config(const char *file) {
 	//Fill the mac_addr
 	for (i = 0; i < mob_med_cfg.count_ids; i++) {
 		config_lookup_int(cf, "ifaces_with_mobility.count_positions_time",
-				(long int *) &mob_med_cfg.radios[i].count_positions);
+				(int *) &mob_med_cfg.radios[i].count_positions);
 		const char *str = config_setting_get_string_elem(ids, i);
 		mob_med_cfg.radios[i].positions = malloc(mob_med_cfg.radios[i].count_positions * sizeof(struct position_time));
 		mob_med_cfg.radios[i].mac = string_to_mac_address(str);
@@ -412,7 +478,7 @@ int load_mobility_medium_config(const char *file) {
 		exit(EXIT_FAILURE);
 	}
 
-	char *temp;
+	const char *temp;
 	//Iterate all matrix arrays
 	for (i = 0; i < pos_time_list_lenght; i++) {
 		mat_array = config_setting_get_elem(pos_time_list, i);
@@ -438,6 +504,7 @@ int load_mobility_medium_config(const char *file) {
 	return 0;
 
 }
+
 
 /*
  * Alternative function to load_config() to load app required data without probability matrix.
@@ -486,7 +553,7 @@ int load_basic_config(const char *file) {
 
 	/*let's parse the values*/
 	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
-			(long int *) &count_value);
+			(int *) &count_value);
 	ids = config_lookup(cf, "ifaces_with_mobility.ids");
 	count_ids = config_setting_length(ids);
 	size = count_ids;
@@ -512,67 +579,5 @@ int load_basic_config(const char *file) {
 	return (EXIT_SUCCESS);
 }
 
-/*
- * Theoretical maximum distance in meters calculated with a link budged including free space equation
- */
-void calcule_max_distance(double carr_freq, double trans_pow, double trans_gain,
-		double rec_gain, double rec_min_pow, double *dmax) {
 
-	double lambda, pi = 3.14159265358979323846, c = 299792458.0, first, second,
-			third;
 
-	lambda = c / carr_freq;
-
-	first = (trans_pow * trans_gain * rec_gain) / rec_min_pow;
-	second = abs(pow(first,1.0/2.0));
-	third = ((double) 4.0 * pi) / lambda;
-
-	*dmax = second / third;
-}
-
-/*
- * This function prints mobility and medium configurations
- */
-void print_mobility_medium_configuration() {
-	int i, j;
-	printf("===============================================\n");
-	printf("      PRINT MOBILITI MEDIUM CONFIGURATION      \n");
-	printf("===============================================\n\n");
-	printf("dmax               =  %f [meters](theoretical max distance)\n",
-			mob_med_cfg.dmax);
-	printf(
-			"interference_tunner=  %d (modeled with additional loss probability of %d %)\n",
-			mob_med_cfg.interference_tunner,
-			(mob_med_cfg.interference_tunner * 100 / 1000));
-	printf("fading_probability =  %d (probability that fading appears %d %)\n",
-			mob_med_cfg.fading_probability,
-			(mob_med_cfg.fading_probability * 100 / 1000));
-	printf(
-			"fading_intensity   =  %d (fading intensity modeled with additional loss probability %d %)\n",
-			mob_med_cfg.fading_intensity,
-			(mob_med_cfg.fading_intensity * 100 / 1000));
-	printf("count_ids          =  %d\n\n", mob_med_cfg.count_ids);
-	printf("MAC ADRESSES", i);
-	for (i = 0; i < mob_med_cfg.count_ids; i++) {
-		printf("\n\nA[%d]:%02X:%02X:%02X:%02X:%02X:%02X\n", i,
-				mob_med_cfg.radios[i].mac.addr[0],
-				mob_med_cfg.radios[i].mac.addr[1],
-				mob_med_cfg.radios[i].mac.addr[2],
-				mob_med_cfg.radios[i].mac.addr[3],
-				mob_med_cfg.radios[i].mac.addr[4],
-				mob_med_cfg.radios[i].mac.addr[5]);
-		printf("Radio positions (time|x|y) [seconds|meters|meters] :\n");
-		for (j = 0; j < mob_med_cfg.radios[i].count_positions; j++) {
-			printf("%.1f|%d|%d", mob_med_cfg.radios[i].positions[j].time,
-					mob_med_cfg.radios[i].positions[j].x,
-					mob_med_cfg.radios[i].positions[j].y);
-			if (j < mob_med_cfg.radios[i].count_positions - 1)
-				printf(" -> ");
-
-		}
-
-	}
-	printf("\n===============================================\n");
-	printf("                   END                         \n");
-	printf("===============================================\n");
-}
