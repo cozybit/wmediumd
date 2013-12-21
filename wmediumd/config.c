@@ -24,9 +24,11 @@
 #include <libconfig.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "probability.h"
 #include "wmediumd.h"
+#include "globals_mobility_medium.h"
 
 extern struct jammer_cfg jam_cfg;
 extern double *prob_matrix;
@@ -282,3 +284,300 @@ int load_config(const char *file)
 	config_destroy(cf);
 	return (EXIT_SUCCESS);
 }
+
+/*
+ * Theoretical maximum distance in meters calculated with a link budged including free space equation
+ */
+void calcule_max_distance(double carr_freq, double trans_pow, double trans_gain,
+		double rec_gain, double rec_min_pow, double *dmax) {
+
+	double lambda, pi = 3.14159265358979323846, c = 299792458.0, first, second,
+			third;
+
+	lambda = c / carr_freq;
+
+	first = (trans_pow * trans_gain * rec_gain) / rec_min_pow;
+	second = abs(pow(first,1.0/2.0));
+	third = (4.0 * pi) / lambda;
+
+	*dmax = second / third;
+}
+
+/*
+ * This function prints mobility and medium configurations
+ */
+void print_mobility_medium_configuration() {
+	int i, j;
+	printf("===============================================\n");
+	printf("      PRINT MOBILITI MEDIUM CONFIGURATION      \n");
+	printf("===============================================\n\n");
+	printf("dmax               =  %f [meters](theoretical max distance)\n",
+			mob_med_cfg.dmax);
+	printf(
+			"interference_tunner=  %d (modeled with additional loss probability of %d %)\n",
+			mob_med_cfg.interference_tunner,
+			(mob_med_cfg.interference_tunner * 100 / 1000));
+	printf("fading_probability =  %d (probability that fading appears %d %)\n",
+			mob_med_cfg.fading_probability,
+			(mob_med_cfg.fading_probability * 100 / 1000));
+	printf(
+			"fading_intensity   =  %d (fading intensity modeled with additional loss probability %d %)\n",
+			mob_med_cfg.fading_intensity,
+			(mob_med_cfg.fading_intensity * 100 / 1000));
+	printf("count_ids          =  %d\n\n", mob_med_cfg.count_ids);
+	printf("MAC ADRESSES");
+	for (i = 0; i < mob_med_cfg.count_ids; i++) {
+		printf("\n\nA[%d]:%02X:%02X:%02X:%02X:%02X:%02X\n", i,
+				mob_med_cfg.radios[i].mac.addr[0],
+				mob_med_cfg.radios[i].mac.addr[1],
+				mob_med_cfg.radios[i].mac.addr[2],
+				mob_med_cfg.radios[i].mac.addr[3],
+				mob_med_cfg.radios[i].mac.addr[4],
+				mob_med_cfg.radios[i].mac.addr[5]);
+		printf("Radio positions (time|x|y) [seconds|meters|meters] :\n");
+		for (j = 0; j < mob_med_cfg.radios[i].count_positions; j++) {
+			printf("%.1f|%d|%d", mob_med_cfg.radios[i].positions[j].time,
+					mob_med_cfg.radios[i].positions[j].x,
+					mob_med_cfg.radios[i].positions[j].y);
+			if (j < mob_med_cfg.radios[i].count_positions - 1)
+				printf(" -> ");
+
+		}
+
+	}
+	printf("\n===============================================\n");
+	printf("                   END                         \n");
+	printf("===============================================\n");
+}
+
+/*
+ * Load required mobility and medium params from config file
+ */
+int load_mobility_medium_config(const char *file) {
+
+	config_t cfg, *cf;
+	const config_setting_t *retries, *pos_time_list, *mat_array;
+	const char *base = NULL;
+	int count, n;
+	double carrier_frequency, transmit_power, transmit_gain, receiver_gain,
+			receiver_min_power;
+
+	cf = &cfg;
+	config_init(cf);
+
+	//Check if config file is readable
+	if (!config_read_file(cf, file)) {
+		printf("Error loading file %s at line:%d, reason: %s\n", file,
+				config_error_line(cf), config_error_text(cf));
+		config_destroy(cf);
+		exit(EXIT_FAILURE);
+	}
+
+	//Variable reading and writting to settings struct mob_med_cfg
+	//Read of permanent data
+	if (config_lookup_int(cf, "debug", (int *) &mob_med_cfg.debug) != CONFIG_TRUE) {
+		printf("\n\nError reading config file parameter: debug.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_int(cf, "interference_tunner",
+			(int *) &mob_med_cfg.interference_tunner) != CONFIG_TRUE) {
+		printf(
+				"\n\nError reading config file parameter: interference_tunner.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_int(cf, "fading_probability",
+			(int *) &mob_med_cfg.fading_probability) != CONFIG_TRUE) {
+		printf(
+				"\n\nError reading config file parameter: fading_probability.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_int(cf, "fading_intensity",
+			(int *) &mob_med_cfg.fading_intensity) != CONFIG_TRUE) {
+		printf(
+				"\n\nError reading config file parameter: fading_intensity.\n\n");
+		exit(EXIT_FAILURE);
+	}
+
+	//Read of temporal data to calculate dmax
+	if (config_lookup_float(cf, "carrier_frequency",
+			(double *) &carrier_frequency) != CONFIG_TRUE) {
+		printf(
+				"\n\nError reading config file parameter: carrier_frequency.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_float(cf, "transmit_power",
+			(double *) &transmit_power)!= CONFIG_TRUE) {
+		printf("\n\nError reading config file parameter: transmit_power.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_float(cf, "transmit_gain",
+			(double *) &transmit_gain) != CONFIG_TRUE) {
+		printf("\n\nError reading config file parameter: transmit_gain.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_float(cf, "receiver_gain",
+			(double *) &receiver_gain) != CONFIG_TRUE) {
+		printf("\n\nError reading config file parameter: receiver_gain.\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if (config_lookup_float(cf, "receiver_min_power",
+			(double *) &receiver_min_power) != CONFIG_TRUE) {
+		printf(
+				"\n\nError reading config file parameter: receiver_min_power.\n\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (mob_med_cfg.debug == 1) {
+		printf("=================DEBUG INFO====================\n");
+		printf("carrier_frequency: %f [Hz]\n", carrier_frequency);
+		printf("transmit_power: %f [Watts]\n", transmit_power);
+		printf("transmit_gain: %f [Linear]\n", transmit_gain);
+		printf("receiver_gain: %f [Linear] \n", receiver_gain);
+		printf("receiver_min_power: %.15f [Watts]\n", receiver_min_power);
+	}
+
+	//Calculate dmax
+	calcule_max_distance(carrier_frequency, transmit_power, transmit_gain,
+				receiver_gain, receiver_min_power, &mob_med_cfg.dmax);
+
+	int i, j, count_radios, count_ids, pos_time_list_lenght;
+	config_setting_t *ids;
+	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
+			(int *) &count_radios);
+
+	mob_med_cfg.radios= malloc(count_radios * sizeof(struct radio_mobility));
+
+	ids = config_lookup(cf, "ifaces_with_mobility.ids");
+	mob_med_cfg.count_ids = config_setting_length(ids);
+
+	//Cross check
+	if (count_radios != mob_med_cfg.count_ids) {
+		printf("\n\nError reading config file parameter: count_ids.\n\n");
+		exit(EXIT_FAILURE);
+	}
+
+	//Fill the mac_addr
+	for (i = 0; i < mob_med_cfg.count_ids; i++) {
+		config_lookup_int(cf, "ifaces_with_mobility.count_positions_time",
+				(int *) &mob_med_cfg.radios[i].count_positions);
+		const char *str = config_setting_get_string_elem(ids, i);
+		mob_med_cfg.radios[i].positions = malloc(mob_med_cfg.radios[i].count_positions * sizeof(struct position_time));
+		mob_med_cfg.radios[i].mac = string_to_mac_address(str);
+	}
+
+	pos_time_list = config_lookup(cf,
+			"ifaces_with_mobility.positions_time_container");
+
+	//Get lenght
+	pos_time_list_lenght = config_setting_length(pos_time_list);
+
+	//Some checks
+	if (count_radios != pos_time_list_lenght) {
+		printf(
+				"\n\nError reading config file parameter: ifaces_with_mobility.positions_time_container.\n\n");
+		exit(EXIT_FAILURE);
+	}
+
+	const char *temp;
+	//Iterate all matrix arrays
+	for (i = 0; i < pos_time_list_lenght; i++) {
+		mat_array = config_setting_get_elem(pos_time_list, i);
+		//Iterate all values on matrix array
+		for (j = 0; j < config_setting_length(mat_array);) {
+			temp = config_setting_get_string_elem(mat_array, j);
+			//printf("%s \n ", temp);
+			sscanf(temp, "%f|%d|%d", &mob_med_cfg.radios[i].positions[j].time,
+					&mob_med_cfg.radios[i].positions[j].x,
+					&mob_med_cfg.radios[i].positions[j].y);
+			//printf("on ram memory: %f|%d|%d| \n ",
+			//		mob_med_cfg.radios[i].positions[j].time,
+			//		mob_med_cfg.radios[i].positions[j].x,
+			//		mob_med_cfg.radios[i].positions[j].y);
+			j++;
+		}
+	}
+
+	//Print the mobility settings
+	print_mobility_medium_configuration();
+
+	config_destroy(cf);
+	return 0;
+
+}
+
+
+/*
+ * Alternative function to load_config() to load app required data without probability matrix.
+ */
+int load_basic_config(const char *file) {
+
+	config_t cfg, *cf;
+	const config_setting_t *ids, *prob_list, *mat_array, *jammer_s;
+	int count_ids, rates_prob, i, j;
+	int count_value, rates_value;
+
+	/*initialize the config file*/
+	cf = &cfg;
+	config_init(cf);
+
+	/*read the file*/
+	if (!config_read_file(cf, file)) {
+		printf("Error loading file %s at line:%d, reason: %s\n", file,
+				config_error_line(cf), config_error_text(cf));
+		config_destroy(cf);
+		exit(EXIT_FAILURE);
+	}
+
+	/* get jammer settings */
+	if ((jammer_s = config_lookup(cf, "jam"))) {
+		switch (config_setting_type(jammer_s)) {
+		case CONFIG_TYPE_STRING:
+			if (!strcmp(config_setting_get_string(jammer_s), "all")) {
+				jam_cfg.jam_all = 1;
+			}
+			break;
+		case CONFIG_TYPE_ARRAY:
+			jam_cfg.nmacs = config_setting_length(jammer_s);
+			jam_cfg.macs = malloc(sizeof(struct mac_address) * jam_cfg.nmacs);
+			if (!jam_cfg.macs) {
+				printf("couldn't allocate jamming mac table!\n");
+				exit(EXIT_FAILURE);
+			}
+			for (i = 0; i < jam_cfg.nmacs; i++) {
+				jam_cfg.macs[i] = string_to_mac_address(
+						config_setting_get_string_elem(jammer_s, i));
+			}
+			break;
+		}
+	}
+
+	/*let's parse the values*/
+	config_lookup_int(cf, "ifaces_with_mobility.count_ids",
+			(int *) &count_value);
+	ids = config_lookup(cf, "ifaces_with_mobility.ids");
+	count_ids = config_setting_length(ids);
+	size = count_ids;
+	/*cross check*/
+	if (count_value != count_ids) {
+		printf("Error on ifaces_with_mobility.count_ids");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("#_if = %d\n", count_ids);
+	/*Initialize the probability*/
+	prob_matrix = init_probability(count_ids);
+	/*Fill the mac_addr*/
+	for (i = 0; i < count_ids; i++) {
+		const char *str = config_setting_get_string_elem(ids, i);
+		put_mac_address(string_to_mac_address(str), i);
+	}
+
+	/*Print the mac_addr array*/
+	print_mac_address_array();
+
+	config_destroy(cf);
+	return (EXIT_SUCCESS);
+}
+
+
+

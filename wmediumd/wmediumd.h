@@ -43,6 +43,8 @@
 #define HWSIM_ATTR_MAX 8
 #define VERSION_NR 1
 
+#include "mac_address.h"
+
 struct hwsim_tx_rate {
         signed char idx;
         unsigned char count;
@@ -53,4 +55,31 @@ struct jammer_cfg {
 	struct mac_address *macs;
 	int nmacs;
 };
+
+struct position_time {
+	float time;
+	int x;
+	int y;
+};
+
+struct radio_mobility {
+	struct mac_address mac;
+	int count_positions;
+	struct position_time *positions;
+};
+
+struct mobility_medium_cfg {
+	int debug;
+	int mobility;
+	unsigned long int start_execution_timestamp;
+	int last_def_position;
+	int dcurrent;
+	double dmax;
+	int interference_tunner;
+	int fading_probability;
+	int fading_intensity;
+	int count_ids;
+	struct radio_mobility *radios;
+};
+
 #endif /* WMEDIUMD_H_ */
